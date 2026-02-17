@@ -7,8 +7,8 @@ import com.meesho.msearch.es.repository.EsRepositoryFactory;
 import com.meesho.msearch.es.v8.config.EsV8ClientFactoryRegistrar;
 import com.meesho.msearch.es.v813.config.EsV813ClientFactoryRegistrar;
 import com.meesho.msearch.es.v91.config.EsV91ClientFactoryRegistrar;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -17,12 +17,8 @@ import org.springframework.context.annotation.Configuration;
 public class HostEsConfig {
 
     @Bean
-    public EsRetryConfig esRetryConfig(HostEsProperties properties) {
-        return EsRetryConfig.builder()
-                .maxAttempts(properties.getRetryMaxAttempts())
-                .durationInSeconds(properties.getRetryDurationInSeconds())
-                .jitterFactor(properties.getRetryJitterFactor())
-                .build();
+    public EsRetryConfig esRetryConfig() {
+        return EsRetryConfig.builder().build();
     }
 
     @Bean

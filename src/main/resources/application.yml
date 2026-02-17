@@ -13,21 +13,20 @@ management:
 
 host:
   es:
-    hosts: ${ES_HOSTS:localhost:9200}
-    scheme: ${ES_SCHEME:http}
-    connection-request-timeout: ${ES_CONNECTION_REQUEST_TIMEOUT_MS:1000}
-    connect-timeout: ${ES_CONNECT_TIMEOUT_MS:5000}
-    socket-timeout: ${ES_SOCKET_TIMEOUT_MS:60000}
-    auth-enabled: ${ES_AUTH_ENABLED:false}
-    username: ${ES_USERNAME:}
-    password: ${ES_PASSWORD:}
-    max-connection-total: ${ES_MAX_CONNECTION_TOTAL:30}
-    max-connection-per-route: ${ES_MAX_CONNECTION_PER_ROUTE:10}
-    cluster-id: ${ES_CLUSTER_ID:local}
-    query-timeout: ${ES_QUERY_TIMEOUT:3s}
-    routing-keys: ${ES_ROUTING_KEYS:}
     enabled-versions: ${ES_ENABLED_VERSIONS:8.5,8.13,9.1}
-    default-limit: ${ES_DEFAULT_LIMIT:10}
-    retry-max-attempts: ${ES_RETRY_MAX_ATTEMPTS:3}
-    retry-duration-in-seconds: ${ES_RETRY_DURATION_SECONDS:3}
-    retry-jitter-factor: ${ES_RETRY_JITTER_FACTOR:0.5}
+    versions:
+      8.5:
+        hosts: ${ES_V85_HOSTS:localhost:9200}
+        username: ${ES_V85_USERNAME:}
+        password: ${ES_V85_PASSWORD:}
+        socket-timeout: ${ES_V85_SOCKET_TIMEOUT_MS:60000}
+      8.13:
+        hosts: ${ES_V813_HOSTS:localhost:9200}
+        username: ${ES_V813_USERNAME:}
+        password: ${ES_V813_PASSWORD:}
+        socket-timeout: ${ES_V813_SOCKET_TIMEOUT_MS:60000}
+      9.1:
+        hosts: ${ES_V91_HOSTS:localhost:9200}
+        username: ${ES_V91_USERNAME:}
+        password: ${ES_V91_PASSWORD:}
+        socket-timeout: ${ES_V91_SOCKET_TIMEOUT_MS:60000}

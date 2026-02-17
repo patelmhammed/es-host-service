@@ -12,14 +12,15 @@ import com.meesho.msearch.es.model.responses.EsSearchResponse;
 import com.meesho.msearch.es.model.responses.EsWriteResponse;
 import com.meesho.msearch.es.repository.EsRepositoryFactory;
 import com.meesho.msearch.host.config.HostEsProperties;
+import com.meesho.msearch.host.config.VersionEsConnection;
 import com.meesho.msearch.host.web.dto.VersionedIndexRequest;
 import com.meesho.msearch.host.web.dto.VersionedSearchRequest;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -60,44 +61,46 @@ public class SearchTestService {
     private EsClientInfo createClientInfo(EsVersion version, String indexName, String clusterId,
             String queryTimeout, List<String> routingKeys) {
         EsClient client = clientByVersion.computeIfAbsent(version,
-                v -> esClientManager.createClient(buildConnectionProperties(), v));
+                v -> esClientManager.createClient(buildConnectionProperties(v), v));
         return EsClientInfo.builder()
                 .esVersion(version)
                 .esClient(client)
-                .requestProperties(buildRequestProperties(indexName, clusterId, queryTimeout, routingKeys))
+                .requestProperties(buildRequestProperties(version, indexName, clusterId, queryTimeout, routingKeys))
                 .build();
     }
 
-    private EsConnectionProperties buildConnectionProperties() {
+    private EsConnectionProperties buildConnectionProperties(EsVersion version) {
+        VersionEsConnection vc = hostEsProperties.getVersions().get(version.getValue());
+        if (vc == null) {
+            throw new IllegalStateException(
+                    "No ES connection config for version " + version.getValue()
+                            + ". Add host.es.versions." + version.getValue() + ".hosts (and optional username, password, socket-timeout).");
+        }
         EsConnectionProperties properties = new EsConnectionProperties();
-        properties.setHosts(hostEsProperties.getHosts());
-        properties.setScheme(hostEsProperties.getScheme());
-        properties.setConnectionRequestTimeout(hostEsProperties.getConnectionRequestTimeout());
-        properties.setConnectTimeout(hostEsProperties.getConnectTimeout());
-        properties.setSocketTimeout(hostEsProperties.getSocketTimeout());
-        properties.setAuthEnabled(hostEsProperties.isAuthEnabled());
-        properties.setUsername(hostEsProperties.getUsername());
-        properties.setPassword(hostEsProperties.getPassword());
-        properties.setMaxConnectionTotal(hostEsProperties.getMaxConnectionTotal());
-        properties.setMaxConnectionPerRoute(hostEsProperties.getMaxConnectionPerRoute());
+        properties.setHosts(vc.getHosts());
+        properties.setUsername(vc.getUsername());
+        properties.setPassword(vc.getPassword());
+        properties.setSocketTimeout(vc.getSocketTimeout());
         return properties;
     }
 
-    private EsRequestProperties buildRequestProperties(String indexName, String clusterId, String queryTimeout,
-            List<String> routingKeys) {
+    private EsRequestProperties buildRequestProperties(EsVersion version, String indexName, String clusterId,
+            String queryTimeout, List<String> routingKeys) {
+        VersionEsConnection vc = hostEsProperties.getVersions().get(version.getValue());
+        String firstHost = (vc != null && vc.getHosts() != null && !vc.getHosts().isEmpty())
+                ? vc.getHosts().get(0) : null;
         EsRequestProperties properties = new EsRequestProperties();
-        properties.setHost(hostEsProperties.getHosts().isEmpty() ? null : hostEsProperties.getHosts().get(0));
-        properties.setClusterId(clusterId != null ? clusterId : hostEsProperties.getClusterId());
-        properties.setQueryTimeout(queryTimeout != null ? queryTimeout : hostEsProperties.getQueryTimeout());
+        properties.setHost(firstHost);
+        properties.setClusterId(clusterId);
+        properties.setQueryTimeout(queryTimeout);
         properties.setIndexName(indexName);
-        properties.setRoutingKeys(routingKeys != null ? routingKeys : hostEsProperties.getRoutingKeys());
+        properties.setRoutingKeys(routingKeys);
         return properties;
     }
 
     private EsSearchRequest withSearchDefaults(EsSearchRequest request) {
         EsSearchRequest safeRequest = request == null ? new EsSearchRequest() : request;
         safeRequest.setSearchFields(safeRequest.getSearchFields() == null ? List.of() : safeRequest.getSearchFields());
-        safeRequest.setLimit(safeRequest.getLimit() == null ? hostEsProperties.getDefaultLimit() : safeRequest.getLimit());
         return safeRequest;
     }
 
