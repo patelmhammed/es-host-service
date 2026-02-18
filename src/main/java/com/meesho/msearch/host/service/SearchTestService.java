@@ -3,8 +3,6 @@ package com.meesho.msearch.host.service;
 import com.meesho.msearch.es.EsVersion;
 import com.meesho.msearch.es.client.EsClient;
 import com.meesho.msearch.es.client.EsClientInfo;
-import com.meesho.msearch.es.client.EsClientManager;
-import com.meesho.msearch.es.config.EsConnectionProperties;
 import com.meesho.msearch.es.config.EsRequestProperties;
 import com.meesho.msearch.es.model.requests.EsSearchRequest;
 import com.meesho.msearch.es.model.requests.EsWriteRequest;
@@ -25,17 +23,21 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class SearchTestService {
-    private final EsClientManager esClientManager;
     private final EsRepositoryFactory esRepositoryFactory;
     private final HostEsProperties hostEsProperties;
     private final Map<EsVersion, EsClient> clientByVersion = new ConcurrentHashMap<>();
 
-    public SearchTestService(EsClientManager esClientManager,
-            EsRepositoryFactory esRepositoryFactory,
+    public SearchTestService(EsRepositoryFactory esRepositoryFactory,
             HostEsProperties hostEsProperties) {
-        this.esClientManager = esClientManager;
         this.esRepositoryFactory = esRepositoryFactory;
         this.hostEsProperties = hostEsProperties;
+    }
+
+    public void registerClient(EsVersion version, EsClient client) {
+        if (version == null || client == null) {
+            throw new IllegalArgumentException("Version and client must be non-null");
+        }
+        clientByVersion.put(version, client);
     }
 
     public Mono<EsSearchResponse> search(VersionedSearchRequest request) {
@@ -60,28 +62,17 @@ public class SearchTestService {
 
     private EsClientInfo createClientInfo(EsVersion version, String indexName, String clusterId,
             String queryTimeout, List<String> routingKeys) {
-        EsClient client = clientByVersion.computeIfAbsent(version,
-                v -> esClientManager.createClient(buildConnectionProperties(v), v));
+        EsClient client = clientByVersion.get(version);
+        if (client == null) {
+            throw new IllegalStateException(
+                    "No ES client initialized for version " + version.getValue()
+                            + ". Ensure host.es.enabled-versions includes this version and startup registration completed.");
+        }
         return EsClientInfo.builder()
                 .esVersion(version)
                 .esClient(client)
                 .requestProperties(buildRequestProperties(version, indexName, clusterId, queryTimeout, routingKeys))
                 .build();
-    }
-
-    private EsConnectionProperties buildConnectionProperties(EsVersion version) {
-        VersionEsConnection vc = hostEsProperties.getVersions().get(version.getValue());
-        if (vc == null) {
-            throw new IllegalStateException(
-                    "No ES connection config for version " + version.getValue()
-                            + ". Add host.es.versions." + version.getValue() + ".hosts (and optional username, password, socket-timeout).");
-        }
-        EsConnectionProperties properties = new EsConnectionProperties();
-        properties.setHosts(vc.getHosts());
-        properties.setUsername(vc.getUsername());
-        properties.setPassword(vc.getPassword());
-        properties.setSocketTimeout(vc.getSocketTimeout());
-        return properties;
     }
 
     private EsRequestProperties buildRequestProperties(EsVersion version, String indexName, String clusterId,

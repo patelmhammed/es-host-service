@@ -8,6 +8,7 @@ A small **Spring Boot app** that uses **es-client** to run **search** and **inde
 
 - Exposes two HTTP APIs: **search** and **index** (bulk).
 - Every request says which **ES version** to use (`8.5`, `8.13`, or `9.1`). Each version can have its own **hosts, username, password, and socket timeout** in config.
+- On startup, service reads enabled versions, registers the matching repository beans in `EsRepositoryFactory`, creates version clients via repository `createClient(...)`, and caches them in host service memory.
 - Uses the es-client library so the same code works for all supported versions.
 
 ---
