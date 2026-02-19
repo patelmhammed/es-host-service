@@ -13,6 +13,8 @@ import com.meesho.msearch.host.config.HostEsProperties;
 import com.meesho.msearch.host.config.VersionEsConnection;
 import com.meesho.msearch.host.web.dto.VersionedIndexRequest;
 import com.meesho.msearch.host.web.dto.VersionedSearchRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -23,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class SearchTestService {
+    private static final Logger log = LoggerFactory.getLogger(SearchTestService.class);
     private final EsRepositoryFactory esRepositoryFactory;
     private final HostEsProperties hostEsProperties;
     private final Map<EsVersion, EsClient> clientByVersion = new ConcurrentHashMap<>();
@@ -47,7 +50,10 @@ public class SearchTestService {
                 request.getQueryTimeout(), request.getRoutingKeys());
         CompletableFuture<EsSearchResponse> future = esRepositoryFactory.getRepository(version)
                 .getDocuments(searchRequest, clientInfo);
-        return Mono.fromFuture(future);
+        return Mono.fromFuture(future)
+                .doOnError(ex -> log.error(
+                        "Search failed for version={}, index={}, clusterId={}",
+                        request.getVersion(), request.getIndexName(), request.getClusterId(), ex));
     }
 
     public Mono<EsWriteResponse> index(VersionedIndexRequest request) {
@@ -57,7 +63,10 @@ public class SearchTestService {
         EsWriteRequest indexRequest = request.getIndexRequest();
         CompletableFuture<EsWriteResponse> future = esRepositoryFactory.getRepository(version)
                 .indexBulkDocuments(indexRequest, clientInfo);
-        return Mono.fromFuture(future);
+        return Mono.fromFuture(future)
+                .doOnError(ex -> log.error(
+                        "Index failed for version={}, index={}, clusterId={}",
+                        request.getVersion(), request.getIndexName(), request.getClusterId(), ex));
     }
 
     private EsClientInfo createClientInfo(EsVersion version, String indexName, String clusterId,

@@ -35,6 +35,53 @@ A small **Spring Boot app** that uses **es-client** to run **search** and **inde
 
 ---
 
+## Spinning up Elasticsearch with Docker (optional)
+
+If Docker is installed, you can run Elasticsearch in containers and point the service at them. Example: ES 8.5.3 on **9200**, 8.13.4 on **9201**, 9.1.1 on **9202** (all with security enabled, password `password`).
+
+**ES 8.5.3 (port 9200):**
+
+```bash
+docker run -d \
+  --name es8-5-3 \
+  -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=true" \
+  -e "ELASTIC_PASSWORD=password" \
+  -e "ES_JAVA_OPTS=-Xms500m -Xmx500m" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.5.3
+```
+
+**ES 8.13.4 (port 9201):**
+
+```bash
+docker run -d \
+  --name es8-13-4 \
+  -p 9201:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=true" \
+  -e "ELASTIC_PASSWORD=password" \
+  -e "ES_JAVA_OPTS=-Xms500m -Xmx500m" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+```
+
+**ES 9.1.1 (port 9202):**
+
+```bash
+docker run -d \
+  --name es9-1-1 \
+  -p 9202:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=true" \
+  -e "ELASTIC_PASSWORD=password" \
+  -e "ES_JAVA_OPTS=-Xms500m -Xmx500m" \
+  docker.elastic.co/elasticsearch/elasticsearch:9.1.1
+```
+
+Then in config set `hosts`, `username` (e.g. `elastic`), and `password` per version (e.g. `localhost:9200` for 8.5, `localhost:9201` for 8.13, `localhost:9202` for 9.1).
+
+---
+
 ## Config (how to point at your Elasticsearch)
 
 Config is **per version**. In `application.yml` you’ll see something like:
@@ -46,18 +93,18 @@ host:
     versions:
       8.5:
         hosts: localhost:9200
-        username: ""          # leave blank if no auth
-        password: ""
+        username: elastic      # leave blank if no auth
+        password: password
         socket-timeout: 60000
       8.13:
-        hosts: localhost:9200
-        username: ""
-        password: ""
+        hosts: localhost:9201
+        username: elastic
+        password: password
         socket-timeout: 60000
       9.1:
-        hosts: localhost:9200
-        username: ""
-        password: ""
+        hosts: localhost:9202
+        username: elastic
+        password: password
         socket-timeout: 60000
 ```
 
@@ -85,6 +132,59 @@ Each request body must include **version** (e.g. `"8.5"`) and **indexName**. Oth
 
 ---
 
+## Prepare Elasticsearch test data (direct ES cURLs)
+
+Before calling `/api/v1/es/search`, you can create a sample index and insert test documents directly in Elasticsearch. When using the Docker setup above (security enabled), use username **elastic** and password **password** with `-u elastic:password`. Adjust the port (e.g. 9200, 9201, 9202) to match the ES instance you use.
+
+### 1) Create index
+
+```bash
+curl -u elastic:password -X PUT "http://localhost:9200/test_index" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "name": { "type": "keyword" },
+        "age":  { "type": "integer" },
+        "created_at": { "type": "date" }
+      }
+    }
+  }'
+```
+
+### 2) Ingest a few sample documents
+
+```bash
+curl -u elastic:password -X POST "http://localhost:9200/test_index/_bulk" \
+  -H "Content-Type: application/x-ndjson" \
+  -d '
+{ "index": { "_id": "1" } }
+{ "name": "alice", "age": 28, "created_at": "2026-01-15T10:00:00Z" }
+{ "index": { "_id": "2" } }
+{ "name": "bob", "age": 34, "created_at": "2026-01-16T11:30:00Z" }
+{ "index": { "_id": "3" } }
+{ "name": "charlie", "age": 25, "created_at": "2026-01-17T09:15:00Z" }
+'
+```
+
+### 3) Verify docs are searchable in ES
+
+```bash
+curl -u elastic:password -X GET "http://localhost:9200/test_index/_search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": {
+      "match_all": {}
+    }
+  }'
+```
+
+---
+
 ## Example: search
 
 ```bash
@@ -106,6 +206,22 @@ curl -X POST http://localhost:8085/api/v1/es/search \
 ```
 
 Change `"version"` to `"8.13"` or `"9.1"` to use that ES version (and its config).
+
+Search response now includes `metadata` per document. This field is a stringified JSON of the ES `_source` fields returned for each hit.
+
+Example response shape:
+
+```json
+{
+  "documents": [
+    {
+      "entityId": "1",
+      "metadata": "{\"name\":\"alice\",\"age\":28,\"created_at\":\"2026-01-15T10:00:00Z\",\"_version\":1}"
+    }
+  ],
+  "resultCount": 1
+}
+```
 
 ---
 

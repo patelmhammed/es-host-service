@@ -17,16 +17,16 @@ host:
     versions:
       8.5:
         hosts: ${ES_V85_HOSTS:localhost:9200}
-        username: ${ES_V85_USERNAME:}
-        password: ${ES_V85_PASSWORD:}
+        username: ${ES_V85_USERNAME:elastic}
+        password: ${ES_V85_PASSWORD:password}
         socket-timeout: ${ES_V85_SOCKET_TIMEOUT_MS:60000}
       8.13:
-        hosts: ${ES_V813_HOSTS:localhost:9200}
-        username: ${ES_V813_USERNAME:}
-        password: ${ES_V813_PASSWORD:}
+        hosts: ${ES_V813_HOSTS:localhost:9201}
+        username: ${ES_V85_USERNAME:elastic}
+        password: ${ES_V85_PASSWORD:password}
         socket-timeout: ${ES_V813_SOCKET_TIMEOUT_MS:60000}
       9.1:
-        hosts: ${ES_V91_HOSTS:localhost:9201}
-        username: ${ES_V91_USERNAME:}
-        password: ${ES_V91_PASSWORD:}
+        hosts: ${ES_V91_HOSTS:localhost:9202}
+        username: ${ES_V85_USERNAME:elastic}
+        password: ${ES_V85_PASSWORD:password}
         socket-timeout: ${ES_V91_SOCKET_TIMEOUT_MS:60000}
